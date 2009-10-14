@@ -100,8 +100,12 @@ module Capistrano
           logger.trace "compressing #{destination} to #{filename}"
           Dir.chdir(tmpdir) { system(compress(File.basename(destination), File.basename(filename)).join(" ")) }
 
-          upload(filename, remote_filename, {:via => configuration[:copy_via]})
-          # FIXED Allow specifying transfer mode
+          if configuration[:copy_via]
+            upload(filename, remote_filename, {:via => configuration[:copy_via]})
+          else
+            upload(filename, remote_filename)
+          end
+
           run "cd #{configuration[:releases_path]} && #{decompress(remote_filename).join(" ")} && rm #{remote_filename}"
         ensure
           FileUtils.rm filename rescue nil
