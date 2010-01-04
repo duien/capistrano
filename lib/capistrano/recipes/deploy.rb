@@ -1,5 +1,4 @@
 require 'yaml'
-require 'mkmf'
 require 'capistrano/recipes/deploy/scm'
 require 'capistrano/recipes/deploy/strategy'
 
@@ -39,6 +38,7 @@ _cset(:real_revision)     { source.local.query_revision(revision) { |cmd| with_e
 
 _cset(:strategy)          { Capistrano::Deploy::Strategy.new(deploy_via, self) }
 
+# If overriding release name, please also select an appropriate setting for :releases below.
 _cset(:release_name)      { set :deploy_timestamped, true; Time.now.utc.strftime("%Y%m%d%H%M%S") }
 
 _cset :version_dir,       "releases"
@@ -51,7 +51,7 @@ _cset(:shared_path)       { File.join(deploy_to, shared_dir) }
 _cset(:current_path)      { File.join(deploy_to, current_dir) }
 _cset(:release_path)      { File.join(releases_path, release_name) }
 
-_cset(:releases)          { capture("ls -xt #{releases_path}").split.reverse }
+_cset(:releases)          { capture("ls -x #{releases_path}").split.reverse }
 _cset(:current_release)   { File.join(releases_path, releases.last) }
 _cset(:previous_release)  { releases.length > 1 ? File.join(releases_path, releases[-2]) : nil }
 
@@ -95,17 +95,13 @@ end
 # returns the command output as a string
 def run_locally(cmd)
   logger.trace "executing locally: #{cmd.inspect}" if logger
-  command_present?(cmd)
-  `#{cmd}`
+  output_on_stdout = `#{cmd}`
+  if $?.to_i > 0 # $? is command exit code (posix style)
+    raise Capistrano::LocalArgumentError, "Command #{cmd} returned status code #{$?}"
+  end
+  output_on_stdout
 end
 
-# tests if the given command is present on the local system
-def command_present?(cmd)
-  executable = cmd.to_s.split(" ").first
-  unless find_executable(executable)
-    logger.important "executable '#{executable}' not present or not in $PATH on the local system!"
-  end
-end
 
 # If a command is given, this will try to execute the given command, as
 # described below. Otherwise, it will return a string for use in embedding in
